@@ -1,6 +1,7 @@
 import Link from 'next/link'
+import type { ReactElement } from 'react'
 
-export default function NotFound() {
+export default function NotFound(): ReactElement {
   return (
     <div
       style={{

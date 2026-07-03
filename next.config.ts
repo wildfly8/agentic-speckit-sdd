@@ -1,4 +1,5 @@
 import nextra from 'nextra'
+import type { NextConfig } from 'next'
 
 const withNextra = nextra({
   latex: true,
@@ -7,6 +8,8 @@ const withNextra = nextra({
   }
 })
 
-export default withNextra({
+const config: NextConfig = withNextra({
   output: 'standalone'
 })
+
+export default config
