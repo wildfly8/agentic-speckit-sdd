@@ -4,7 +4,7 @@ import { getPageMap } from 'nextra/page-map'
 const navbar = (
   <Navbar
     logo={<b>Nextra SDD Docs</b>}
-    projectLink="https://github.com/your-username/agentic-speckit-sdd"
+    projectLink="https://github.com/wildfly8/agentic-speckit-sdd"
   />
 )
 
@@ -22,7 +22,7 @@ export default async function DocsLayout({ children }) {
     <Layout
       navbar={navbar}
       pageMap={await getPageMap()}
-      docsRepositoryBase="https://github.com/your-username/agentic-speckit-sdd/tree/main"
+      docsRepositoryBase="https://github.com/wildfly8/agentic-speckit-sdd/tree/main"
       footer={footer}
       sidebar={{ defaultMenuCollapseLevel: 1 }}
     >
