@@ -1,0 +1,23 @@
+{
+  "name": "agentic-speckit-sdd",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Nextra 4 documentation site built with GitHub Spec-Kit SDD workflow",
+  "scripts": {
+    "dev": "next dev -p 3000 -H 0.0.0.0 --webpack",
+    "build": "next build",
+    "start": "next start",
+    "postinstall": "patch-package"
+  },
+  "dependencies": {
+    "katex": "^0.16.22",
+    "next": "^16.2.10",
+    "nextra": "^4.6.1",
+    "nextra-theme-docs": "^4.6.1",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "patch-package": "^8.0.1"
+  }
+}

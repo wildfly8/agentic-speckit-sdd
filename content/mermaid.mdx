@@ -1,0 +1,40 @@
+# Mermaid Diagram
+
+This page demonstrates Nextra's built-in [Mermaid](https://mermaid.js.org/) support. Diagrams are authored as fenced code blocks and rendered in the browser.
+
+## Spec-Driven Development Flow
+
+The diagram below shows the Spec-Kit SDD workflow used to build this site:
+
+```mermaid
+graph LR
+  A["/speckit-constitution"] --> B["/speckit-specify"]
+  B --> C["/speckit-plan"]
+  C --> D["/speckit-tasks"]
+  D --> E["/speckit-implement"]
+  E --> F["Deploy to Vercel"]
+```
+
+## Nextra Architecture
+
+```mermaid
+graph TD
+  subgraph Content["content/"]
+    I[index.mdx]
+    M[mermaid.mdx]
+    X[math.mdx]
+  end
+
+  subgraph App["app/"]
+    L[layout.jsx]
+    P["[[...mdxPath]]/page.jsx"]
+  end
+
+  I --> P
+  M --> P
+  X --> P
+  L --> P
+  P --> R[Rendered Page]
+```
+
+[← Back to Home](/)
