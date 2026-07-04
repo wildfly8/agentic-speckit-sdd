@@ -1,0 +1,59 @@
+name: Social Syndicate
+
+# Fires when a new blog post file is merged to main (i.e. after Vercel deploys it).
+# Only newly ADDED files under content/posts are syndicated — edits to existing
+# posts won't trigger a re-post.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'content/posts/**.mdx'
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  syndicate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Find newly added posts
+        id: diff
+        run: |
+          FILES=$(git diff --name-status HEAD^ HEAD -- content/posts | awk '$1=="A"{print $2}')
+          {
+            echo "files<<EOF"
+            echo "$FILES"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Install syndication script dependencies
+        if: steps.diff.outputs.files != ''
+        working-directory: scripts/social-syndicate
+        run: npm install
+
+      - name: Syndicate new posts
+        if: steps.diff.outputs.files != ''
+        working-directory: scripts/social-syndicate
+        env:
+          X_APP_KEY: ${{ secrets.X_APP_KEY }}
+          X_APP_SECRET: ${{ secrets.X_APP_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_SECRET: ${{ secrets.X_ACCESS_SECRET }}
+          FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
+          FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}
+          SITE_URL: ${{ vars.SITE_URL }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          CHANGED_FILES: ${{ steps.diff.outputs.files }}
+        run: node post.mjs
