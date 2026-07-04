@@ -1,8 +1,8 @@
 # Social Syndication Pipeline
 
-Automatically cross-posts new blog posts to **X** and **Facebook** when a new file
-is merged into `content/posts/` on `main`. Since Substack, Ko-fi, and Patreon don't
-offer a reliable public API for creating posts, this pipeline instead opens a
+Automatically cross-posts new blog posts to **X**, **Facebook**, and **Medium** when a
+new file is merged into `content/posts/` on `main`. Since Substack, Ko-fi, and Patreon
+don't offer a reliable public API for creating posts, this pipeline instead opens a
 **GitHub Issue** with ready-to-paste drafts for those three so publishing there is
 still fast — just manual.
 
@@ -13,6 +13,7 @@ still fast — just manual.
 3. The Action diffs the commit, finds newly **added** `.mdx` files under `content/posts/`, and for each one:
    - Posts a teaser + link to your **X** account
    - Posts a teaser + link to your **Facebook Page**
+   - Publishes the **full post** to **Medium**, with `canonicalUrl` pointing back to your site (avoids duplicate-content SEO issues)
    - Opens a GitHub Issue titled `Cross-post draft: <title>` with copy-paste-ready text for Substack, Ko-fi, and Patreon
 
 Editing an existing post won't re-trigger a post — only newly added files do.
@@ -60,7 +61,26 @@ Note: the free API tier has a monthly write-post cap — check your current limi
 
 Long-lived Page tokens expire after ~60 days unless refreshed — you'll want a calendar reminder or a small refresh script if this runs long-term.
 
-### 4. GitHub Issue drafts
+### 4. Medium credentials
+
+⚠️ **Medium's public API is officially deprecated** — Medium stopped issuing new
+integration tokens/OAuth clients in 2023. Existing tokens keep working, but this is
+unsupported and could stop working at any time without notice. Some accounts have
+also reported the "Integration tokens" setting no longer appearing at all. Treat this
+as best-effort, not a guaranteed channel.
+
+1. Go to [medium.com/me/settings](https://medium.com/me/settings), scroll to the bottom, and look for **"Integration tokens"**.
+2. If present: enter a name (e.g. "agentic-speckit-sdd syndication") and click **Get integration token**. Copy it immediately — it's shown once.
+3. If the option isn't there for your account, Medium auto-publishing isn't available to you; skip this and the pipeline will just log a Medium failure per run without blocking X/Facebook/the draft issue.
+4. Add as a repo **secret**:
+   - `MEDIUM_INTEGRATION_TOKEN`
+
+Note: Medium publishes the **full post body** (as markdown) with `canonicalUrl` set to
+your site's post URL, so Google treats your site as the original source rather than
+flagging duplicate content. MDX-specific components (e.g. custom React components)
+won't render on Medium — only plain Markdown content will look correct there.
+
+### 5. GitHub Issue drafts
 No setup needed — uses the automatically-provided `GITHUB_TOKEN`, scoped to `issues: write` in the workflow file.
 
 ## Testing it

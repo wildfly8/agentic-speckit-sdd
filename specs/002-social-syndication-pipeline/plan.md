@@ -23,7 +23,7 @@ The syndication script lives outside the Next.js app's own dependency tree
 
 **Language/Version**: Node.js 22 (ES modules)
 
-**Primary Dependencies**: `gray-matter` (frontmatter parsing), `twitter-api-v2` (X OAuth 1.0a signing + posting), native `fetch` for Facebook Graph API and GitHub REST API — no other runtime deps.
+**Primary Dependencies**: `gray-matter` (frontmatter parsing), `twitter-api-v2` (X OAuth 1.0a signing + posting), native `fetch` for Facebook Graph API, Medium's integration-token API, and the GitHub REST API — no other runtime deps.
 
 **Storage**: N/A (stateless script; source of truth is the git diff of `content/posts/`)
 
@@ -95,8 +95,9 @@ part of `next build`.
 | Added-vs-modified detection | `git diff --name-status HEAD^ HEAD` filtered to status `A` | Satisfies FR-002: edits must not re-trigger a post |
 | X auth | OAuth 1.0a user context via `twitter-api-v2` | Required for posting via API v2; simpler than managing OAuth2 refresh-token rotation for a low-frequency bot |
 | Facebook auth | Long-lived Page Access Token | Simplest stable credential for a single-page poster; documented 60-day renewal in README |
+| Medium auth | Legacy integration token | Only working publish mechanism Medium offers, despite official deprecation; wired in as best-effort with isolated failure handling rather than skipped entirely, since it can publish full content (unlike X/Facebook's teaser+link) |
 | Substack/Ko-fi/Patreon | GitHub Issue with draft copy, no auto-publish | Confirmed via research: none of the three expose a public, stable "create post" API — full automation would mean unofficial, cookie-based, ToS-risk libraries, which was explicitly descoped by the user |
-| Per-platform isolation | `Promise.allSettled` across the three publish/draft calls | Satisfies FR-008: one platform's failure must not block the others |
+| Per-platform isolation | `Promise.allSettled` across the four publish/draft calls | Satisfies FR-010: one platform's failure must not block the others — this matters especially for Medium, whose deprecated API can fail unpredictably |
 | Dependency isolation | Separate `scripts/social-syndicate/package.json` | Keeps `twitter-api-v2`/`gray-matter` out of the Next.js app's dependency graph and Vercel build |
 
 ## Complexity Tracking

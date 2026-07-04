@@ -1,10 +1,15 @@
-// Cross-posts newly-added blog posts (content/posts/*.mdx) to X and Facebook,
+// Cross-posts newly-added blog posts (content/posts/*.mdx) to X, Facebook, and Medium,
 // and opens a GitHub Issue with ready-to-paste drafts for Substack, Ko-fi, and Patreon
 // (those three don't have a reliable public "create post" API, so we don't auto-publish there).
+//
+// Medium note: Medium's public API is officially deprecated (no new integrations since
+// 2023) but existing "integration tokens" still work for posting. This is unsupported
+// and could stop working at any time - treat it as best-effort, not guaranteed.
 //
 // Expected env vars (set as GitHub Actions secrets/variables):
 //   X_APP_KEY, X_APP_SECRET, X_ACCESS_TOKEN, X_ACCESS_SECRET   - X (Twitter) OAuth 1.0a user-context app
 //   FB_PAGE_ID, FB_PAGE_ACCESS_TOKEN                            - Facebook Page + long-lived Page token
+//   MEDIUM_INTEGRATION_TOKEN                                    - Medium integration token (Settings > Integration tokens)
 //   SITE_URL                                                    - e.g. https://your-domain.com (no trailing slash)
 //   GITHUB_TOKEN, GITHUB_REPOSITORY                              - provided automatically by Actions
 //   CHANGED_FILES                                               - newline-separated list of added .mdx paths
@@ -38,7 +43,7 @@ function loadPost(relativePath) {
   const siteUrl = (process.env.SITE_URL || '').replace(/\/$/, '')
   const url = `${siteUrl}/posts/${slug}`
 
-  return { title: data.title, summary, slug, url, tags: data.tags || [] }
+  return { title: data.title, summary, slug, url, tags: data.tags || [], body: content.trim() }
 }
 
 function buildTweetText({ title, summary, url }) {
@@ -87,6 +92,44 @@ async function postToFacebook(post) {
     throw new Error(`Facebook API error: ${JSON.stringify(json)}`)
   }
   return `https://www.facebook.com/${json.id}`
+}
+
+async function postToMedium(post) {
+  const { MEDIUM_INTEGRATION_TOKEN } = process.env
+  if (!MEDIUM_INTEGRATION_TOKEN) {
+    throw new Error('Missing Medium credentials (MEDIUM_INTEGRATION_TOKEN)')
+  }
+
+  const headers = {
+    Authorization: `Bearer ${MEDIUM_INTEGRATION_TOKEN}`,
+    'Content-Type': 'application/json',
+    Accept: 'application/json'
+  }
+
+  const meRes = await fetch('https://api.medium.com/v1/me', { headers })
+  const me = await meRes.json()
+  if (!meRes.ok) {
+    throw new Error(`Medium auth failed: ${JSON.stringify(me)}`)
+  }
+  const authorId = me.data.id
+
+  const postRes = await fetch(`https://api.medium.com/v1/users/${authorId}/posts`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      title: post.title,
+      contentFormat: 'markdown',
+      content: post.body,
+      canonicalUrl: post.url,
+      tags: post.tags.slice(0, 5),
+      publishStatus: 'public'
+    })
+  })
+  const json = await postRes.json()
+  if (!postRes.ok) {
+    throw new Error(`Medium API error: ${JSON.stringify(json)}`)
+  }
+  return json.data.url
 }
 
 async function openDraftIssue(post) {
@@ -170,10 +213,11 @@ async function main() {
     const results = await Promise.allSettled([
       postToX(post),
       postToFacebook(post),
+      postToMedium(post),
       openDraftIssue(post)
     ])
 
-    const [xResult, fbResult, issueResult] = results
+    const [xResult, fbResult, mediumResult, issueResult] = results
     if (xResult.status === 'fulfilled') {
       console.log(`✅ X posted: ${xResult.value}`)
     } else {
@@ -185,6 +229,13 @@ async function main() {
       console.log(`✅ Facebook posted: ${fbResult.value}`)
     } else {
       console.error(`❌ Facebook failed: ${fbResult.reason.message}`)
+      hadError = true
+    }
+
+    if (mediumResult.status === 'fulfilled') {
+      console.log(`✅ Medium posted: ${mediumResult.value}`)
+    } else {
+      console.error(`❌ Medium failed: ${mediumResult.reason.message}`)
       hadError = true
     }
 

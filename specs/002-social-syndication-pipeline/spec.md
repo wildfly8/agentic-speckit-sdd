@@ -41,7 +41,24 @@ As the site owner, the same new post is automatically published to my Facebook P
 
 ---
 
-### User Story 3 - Ready-to-paste drafts for Substack, Ko-fi, Patreon (Priority: P3)
+### User Story 3 - Auto-publish full post to Medium (Priority: P2)
+
+As the site owner, the full text of the new post is automatically published to my
+Medium account, with a canonical link back to the original site.
+
+**Why this priority**: Medium can host the full article (not just a teaser+link like X/Facebook), giving it real standalone reach — but it rides on Medium's officially deprecated integration-token API, so it's scoped at the same priority tier as Facebook rather than above it, and treated as best-effort.
+
+**Independent Test**: Same trigger as User Story 1; confirm a new Medium post appears containing the full post body and a canonical URL pointing back to the site.
+
+**Acceptance Scenarios**:
+
+1. **Given** a new post is merged and a valid Medium integration token is configured, **When** the workflow runs, **Then** a Medium post is created with the post's title, full markdown body, and `canonicalUrl` set to the post's URL on the primary site.
+2. **Given** the Medium integration token is missing, invalid, or Medium's deprecated API has stopped accepting the request, **When** the publish attempt fails, **Then** the workflow reports a Medium-specific failure without blocking X, Facebook, or the draft issue.
+3. **Given** a post's body contains MDX-specific components (not plain Markdown), **When** it's published to Medium, **Then** those components will not render correctly — this is a known limitation, not a bug.
+
+---
+
+### User Story 4 - Ready-to-paste drafts for Substack, Ko-fi, Patreon (Priority: P3)
 
 As the site owner, since Substack, Ko-fi, and Patreon do not offer a reliable public API for creating posts, I instead get a GitHub Issue with copy-paste-ready drafts for each of those platforms so I can publish natively without composing anything from scratch.
 
@@ -71,10 +88,12 @@ As the site owner, since Substack, Ko-fi, and Patreon do not offer a reliable pu
 - **FR-004**: The system MUST compose and publish a post to X via the official X API v2, containing the title, summary, and canonical post URL.
 - **FR-005**: The system MUST truncate the X post text to fit X's character limit while preserving the full canonical URL.
 - **FR-006**: The system MUST compose and publish a post to a configured Facebook Page via the official Graph API, containing the title, summary, and canonical post URL.
-- **FR-007**: The system MUST open a GitHub Issue containing distinct, ready-to-paste draft copy for Substack, Ko-fi, and Patreon, since none of these three offer a reliable public API for creating posts.
-- **FR-008**: The system MUST treat each platform's publish/draft step as independent — a failure on one platform MUST NOT prevent the others from being attempted.
-- **FR-009**: The system MUST read all platform credentials (X, Facebook) from CI secrets — no credentials are stored in the repository.
-- **FR-010**: The system MUST construct the canonical post URL from a configured `SITE_URL` base plus a `/posts/<slug>` path, where slug defaults to the filename and can be overridden via frontmatter.
+- **FR-007**: The system MUST publish the full post body to Medium via Medium's integration-token API, setting `canonicalUrl` to the post's URL on the primary site so Medium is not treated as the canonical source for SEO purposes.
+- **FR-008**: The system MUST treat the Medium publish step as best-effort — since Medium's API is officially deprecated and unsupported, a Medium failure (missing token, revoked token, or API unavailability) MUST be reported without blocking any other platform.
+- **FR-009**: The system MUST open a GitHub Issue containing distinct, ready-to-paste draft copy for Substack, Ko-fi, and Patreon, since none of these three offer a reliable public API for creating posts.
+- **FR-010**: The system MUST treat each platform's publish/draft step as independent — a failure on one platform MUST NOT prevent the others from being attempted.
+- **FR-011**: The system MUST read all platform credentials (X, Facebook, Medium) from CI secrets — no credentials are stored in the repository.
+- **FR-012**: The system MUST construct the canonical post URL from a configured `SITE_URL` base plus a `/posts/<slug>` path, where slug defaults to the filename and can be overridden via frontmatter.
 
 ### Key Entities
 
@@ -88,14 +107,16 @@ As the site owner, since Substack, Ko-fi, and Patreon do not offer a reliable pu
 
 - **SC-001**: A new post merged to `main` results in a live X post within 5 minutes, with zero manual steps.
 - **SC-002**: A new post merged to `main` results in a live Facebook Page post within 5 minutes, with zero manual steps.
-- **SC-003**: A new post merged to `main` results in a GitHub Issue containing usable, distinct draft copy for all three of Substack, Ko-fi, and Patreon, requiring only copy-and-paste (no original writing) to publish natively.
-- **SC-004**: Editing an existing post never produces a duplicate social post or draft issue.
-- **SC-005**: A credential failure on one platform (e.g., an expired Facebook token) is visible in the Action run logs and does not prevent the other platforms from being attempted in the same run.
+- **SC-003**: When a valid Medium integration token is configured, a new post merged to `main` results in a live Medium post (full body, correct canonical URL) within 5 minutes; when Medium's deprecated API rejects the request or no token is configured, this is visible as an isolated failure in the Action logs without affecting X, Facebook, or the draft issue.
+- **SC-004**: A new post merged to `main` results in a GitHub Issue containing usable, distinct draft copy for all three of Substack, Ko-fi, and Patreon, requiring only copy-and-paste (no original writing) to publish natively.
+- **SC-005**: Editing an existing post never produces a duplicate social post, Medium post, or draft issue.
+- **SC-006**: A credential failure on one platform (e.g., an expired Facebook token, a revoked Medium token) is visible in the Action run logs and does not prevent the other platforms from being attempted in the same run.
 
 ## Assumptions
 
-- The site owner manages exactly one X account, one Facebook Page, and one each of Substack/Ko-fi/Patreon — no multi-account fan-out.
+- The site owner manages exactly one X account, one Facebook Page, one Medium account, and one each of Substack/Ko-fi/Patreon — no multi-account fan-out.
+- Medium's integration-token API continues to function; since it is officially deprecated, this is treated as best-effort rather than a guarantee, and the pipeline is designed to degrade gracefully (isolated failure) if Medium stops accepting requests entirely.
 - `SITE_URL` points at the production domain and is stable (not per-preview-deployment).
 - Publishing to Substack, Ko-fi, and Patreon natively (via their own dashboards) is acceptable as the "final step" for those three platforms — full automation there was explicitly descoped due to lack of official publish APIs.
-- The GitHub Actions runner has outbound network access to `api.x.com` (or `api.twitter.com`), `graph.facebook.com`, and `api.github.com`.
-- Token refresh/rotation for X and Facebook credentials is a manual, out-of-band operational task (not automated by this feature).
+- The GitHub Actions runner has outbound network access to `api.x.com` (or `api.twitter.com`), `graph.facebook.com`, `api.medium.com`, and `api.github.com`.
+- Token refresh/rotation for X, Facebook, and Medium credentials is a manual, out-of-band operational task (not automated by this feature).
